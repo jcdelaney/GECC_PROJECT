@@ -1,0 +1,8 @@
+//Log file created (Version=1) on  1:46:14  28-Mar-2013AM for Subject=002, Session=1
+//[SendTrigger] Initialization
+//TrialList generated at  7196.7631
+//Screen dimensions are 1024x768
+1,1,Matched Word,throwing,throwing,22.40
+1,2,Mismatched Word,camera,fly,25.98
+1,3,Mismatched Word,cat,cactus,29.55
+//[ExitStudy] Study aborted by user after run 1, trial 3

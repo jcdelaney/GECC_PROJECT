@@ -24,6 +24,8 @@ global EVENT
 global ABORT
 global BUTTON1
 global BUTTON2
+global RESOLUTION
+global LIGHT_GRAY
 
 ResponseMode = (nargin > 1);
 
@@ -32,6 +34,7 @@ if isempty(LOGID)
 end
 
 num_fail = 0;
+rect = CenterRectOnPoint([0,0,800,450],RESOLUTION(1)/2,RESOLUTION(2)/2);
 
 % === 
 % load isi image
@@ -124,7 +127,6 @@ for t=1:length(TrialList)
             [y, freq] = wavread(TrialAudio);
             wavedata = y';
             nrchannels = size(wavedata,1);
-            
             pahandle = PsychPortAudio('Open', [], [], 0, freq, nrchannels);
             
             buffer = PsychPortAudio('CreateBuffer', pahandle, wavedata);
@@ -133,7 +135,7 @@ for t=1:length(TrialList)
     catch ME
         Error = ME.stack(length(ME.stack)-1);
         ErrorInfo = sprintf('[%s|%d]',Error.name, Error.line);
-        ExitStudy(sprintf('Problem reading/playing audio\n%s',strcat(ErrorInfo,ME.message)));
+        ExitStudy(sprintf('Problem reading/playing audio\n%s',strcat(ErrorInfo,ME.message,TrialAudio)));
         success = 0;
         return
     end
@@ -148,7 +150,7 @@ for t=1:length(TrialList)
         else
         % write out info to log file
         TrialTime = GetSecs()-START_TIME;
-        fprintf(LOGID,'%d,%d,%s,%s,%s,%.2f\n',CURRENT_RUN,t,TrialType,TrialList(t).audioStim,TrialList(t).visualStim,TrialTime);
+        fprintf(LOGID,'%d,%d,%s,%s,%s,%d,%.2f\n',CURRENT_RUN,t,TrialType,TrialList(t).audioStim,TrialList(t).visualStim,TrialList(t).difficulty,TrialTime);
             % =============
             % draw texture
             % =============
@@ -160,8 +162,13 @@ for t=1:length(TrialList)
                 Screen('DrawTexture', WINDOW, StimTexture);
                 Screen('DrawingFinished', WINDOW);
                 % display the stimulus image
-                [StimVBLTime] = Screen('Flip', WINDOW, ISIVBL + ISI);
-                PsychPortAudio('Start', pahandle);
+                trialISI = randsample(ISI,1);
+                [StimVBLTime] = Screen('Flip', WINDOW, ISIVBL + trialISI);
+                if ~ResponseMode
+                    WaitSecs(0.7);
+                    audioStart = PsychPortAudio('Start', pahandle);
+                    [Failed ErrorMessage] = SendTrigger(EVENT.AudioStart,audioStart);
+                end
 
                 fprintf('\t[Trial %d: %s]\n',t,TrialType);
         
@@ -246,7 +253,11 @@ for t=1:length(TrialList)
                     WaitSecs(FEEDBACK_DURATION);
                 end
             end
-            PsychPortAudio('Stop',pahandle,1);
+            if ~ResponseMode
+                audioEnd = PsychPortAudio('Stop',pahandle,1);
+                [Failed ErrorMessage] = SendTrigger(EVENT.AudioStop,audioEnd);
+                WaitSecs(1.0);
+            end
             % close texture and audio stream
             Screen('Close',StimTexture);
             PsychPortAudio('DeleteBuffer',buffer);

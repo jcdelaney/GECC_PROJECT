@@ -15,6 +15,7 @@ classdef EEAEvents
         Success = {3,'PASS'};
         Failure = {4,'FAIL'};
         Miss = {5,'MISS'};
+        Pause = {5,'BRCK'};
         ExperimentHalt = {6,'HALT'};
         % training codes
         TrainingStart = {2,'TRGO'};

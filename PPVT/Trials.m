@@ -9,7 +9,8 @@ global NUM_TRIALS
 global WORKING_DIRECTORY
 
 % read in the list of words
-fid = fopen('wordList.csv','r');
+fid = fopen('wordList_new.csv','r');
+wordArray = textscan(fid,'%s %s %s %d','delimiter',',');
 line = fgetl(fid);
 WordArray=[];
 
@@ -41,22 +42,18 @@ RUN = cell(1,NUM_RUNS);
 % ===
 % Generate trial list
 % ===
-randWordArray1 = WordArray(randperm(length(WordArray)));
-randWordArray2 = WordArray(randperm(length(WordArray)));
-randWordArray = horzcat(randWordArray1,randWordArray2);
 trialList = cell(1,NUM_TRIALS);
+%indexArray = [1:length(wordArray{1})];
+%randIndexArray = indexArray(randperm(length(wordArray{1})));
 
+j = 1;
 for i=1:length(trialList)
-    % generate matched word list
-    if i <= floor(NUM_TRIALS/2)
-        trialList{i} = {randWordArray{i},randWordArray{i}};
-    % generate mismatched word list
+    %randIndex = randIndexArray(j)
+    if (mod(i,2) == 0) 
+        trialList{i} = {wordArray{2}{j},wordArray{2}{j},wordArray{4}(j)};
     else
-        if i ~= ceil(NUM_TRIALS/2+1)
-            trialList{i} = {randWordArray{i},randWordArray{i+1}};
-        else
-            trialList{i} = {randWordArray{i},randWordArray{length(WordArray)+1}};
-        end
+        trialList{i} = {wordArray{2}{j},wordArray{3}{j},wordArray{4}(j)};
+        j = j + 1;
     end
 end
 
@@ -100,6 +97,7 @@ for r=1:NUM_RUNS
         type = strcmp(trialList{trialIndex}{1},trialList{trialIndex}{2});
         trials(t).visualStim = trialList{trialIndex}{1};
         trials(t).audioStim = trialList{trialIndex}{2};
+        trials(t).difficulty = trialList{trialIndex}{3};
         
         switch type
             case 0 % add a Match trial for run r
@@ -111,9 +109,10 @@ for r=1:NUM_RUNS
         % store stimulus in LogLine
         LogLine{5} = trials(t).visualStim;
         LogLine{6} = trials(t).audioStim;
-        LogLine{7} = trials(t).type;
+        logLine{7} = trials(t).difficulty;
+        LogLine{8} = trials(t).type;
         % update the log file
-        fprintf(Log,'%d,%d,%d,%d,%s,%s,%s\n',LogLine{:});
+        fprintf(Log,'%d,%d,%d,%d,%s,%s,%d,%s\n',LogLine{:});
         
     end % trial for
     

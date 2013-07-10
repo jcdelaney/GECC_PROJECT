@@ -19,6 +19,8 @@ global ISI % the duration (sec) of the ISI
 global EVENT
 global ABORT
 global BUTTON1
+global LIGHT_GRAY
+global RESOLUTION
 
 
 if isempty(LOGID)
@@ -27,6 +29,7 @@ end
 ImageFolder = 'jpgs';
 AudioFolder = 'wavs';
 num_fail = 0;
+rect = CenterRectOnPoint([0,0,800,450],RESOLUTION(1)/2,RESOLUTION(2)/2);
 
 PositiveStimulus = [ImageFolder,filesep,'correct.jpg'];
 NegativeStimulus = [ImageFolder,filesep,'incorrect.jpg'];
@@ -132,7 +135,8 @@ for t=1:length(TrialList)
                 Screen('DrawTexture', WINDOW, StimTexture);
                 Screen('DrawingFinished', WINDOW);
                 % display the stimulus image
-                [StimVBLTime] = Screen('Flip', WINDOW, ISIVBL + ISI);
+                trialISI = randsample(ISI,1);
+                [StimVBLTime] = Screen('Flip', WINDOW, ISIVBL + trialISI);
 
                 fprintf('\t[%s trial]',TrialType);
         
@@ -156,6 +160,7 @@ for t=1:length(TrialList)
             % listen for keyboard responses until RESP_DURATION
                 [keyIsDown secs keyCode ] = KbCheck(-3);
                 % check if key was pressed
+                Response = 'No Go';
                 if keyIsDown
                     if sum(keyCode(BUTTON1))
                         HasResponded = 1;
@@ -169,51 +174,28 @@ for t=1:length(TrialList)
             end % while time < RESP_DURATION && ~HasResponded
 
             % if a response was made, send a trigger and load positive/negative stimulus
-            if HasResponded
-                Accurate = strcmp(Response,TrialType);
-                if Accurate
-                    [Failed ErrorMessage] = SendTrigger(EVENT.Success,secs);
-                    fprintf('Subject correctly responded to a %s trial\n',TrialType);
-                    Screen('DrawTexture', WINDOW, PosTexture);
-                    Screen('DrawingFinished', WINDOW);
-                else
-                    [Failed ErrorMessage] = SendTrigger(EVENT.Failure,secs);
-                    num_fail = num_fail + 1;
-                    fprintf('Subject incorrectly responded to a %s trial\n',TrialType);
-                    Screen('DrawTexture', WINDOW, NegTexture);
-                    Screen('DrawingFinished', WINDOW);
-                end
-                if Failed
-                    ExitStudy(ErrorMessage);
-                    success=0;
-                    return
-                end
-                ResponseVBLTime = Screen('Flip', WINDOW);
-                % write to log
-                fprintf(LOGID,'%d\t%d\t%10.4f\tTrialResponse[%s]\t%d\t%d\n',CURRENT_RUN,CURRENT_BLOCK,ResponseVBLTime,Response,Accurate,NUM_TRIALS);
-                Waitsecs(((ResponseStart + RESP_DURATION) - ResponseVBLTime) + FEEDBACK_DURATION);
-            % check for missed response
-            elseif ~HasResponded
-                ExpireTime = GetSecs;
-                % load negative stimulus
+            Accurate = strcmp(Response,TrialType);
+            if Accurate
+                [Failed ErrorMessage] = SendTrigger(EVENT.Success,secs);
+                fprintf('Subject correctly responded to a %s trial\n',TrialType);
+                Screen('DrawTexture', WINDOW, PosTexture);
+                Screen('DrawingFinished', WINDOW);
+            else
+                [Failed ErrorMessage] = SendTrigger(EVENT.Failure,secs);
+                num_fail = num_fail + 1;
+                fprintf('Subject incorrectly responded to a %s trial\n',TrialType);
                 Screen('DrawTexture', WINDOW, NegTexture);
                 Screen('DrawingFinished', WINDOW);
-
-                fprintf(LOGID,'%d\t%d\t%10.4f\tTrialExpire\t%d\n',CURRENT_RUN,CURRENT_BLOCK,ExpireTime,NUM_TRIALS);
-                [Failed ErrorMessage] = SendTrigger(EVENT.Miss,ExpireTime);
-                num_fail = num_fail + 1;
-                fprintf('[MISS]\n');
-                if Failed
-                    ExitStudy(ErrorMessage);
-                    success=0;
-                    return
-                end
-                % flip screen to clear
-                ResponseVBLTime = Screen('Flip', WINDOW);
-                Waitsecs(FEEDBACK_DURATION);
-            else % if not, flush the buffer 
-                ResponseVBLTime = Screen('Flip', WINDOW, ResponseVBLTime);
             end
+            if Failed
+                ExitStudy(ErrorMessage);
+                success=0;
+                return
+            end
+            ResponseVBLTime = Screen('Flip', WINDOW);
+            % write to log
+            fprintf(LOGID,'%d\t%d\t%10.4f\tTrialResponse[%s]\t%d\t%d\n',CURRENT_RUN,CURRENT_BLOCK,ResponseVBLTime,Response,Accurate,NUM_TRIALS);
+            Waitsecs(((ResponseStart + RESP_DURATION) - ResponseVBLTime) + FEEDBACK_DURATION);
             % close textures
             Screen('Close',StimTexture);
             Screen('Close',PosTexture);

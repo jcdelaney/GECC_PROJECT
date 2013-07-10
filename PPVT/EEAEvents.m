@@ -16,6 +16,9 @@ classdef EEAEvents
         Success = {3,'PASS'};
         Failure = {4,'FAIL'};
         Miss = {5,'MISS'};
+        AudioStart = {5,'ASTR'};
+        AudioStop = {5,'AEND'};
+        Pause = {5,'BRCK'};
         % training codes
         TrainingStart = {2,'TRGO'};
         Button1 = {2,'BUT1'};

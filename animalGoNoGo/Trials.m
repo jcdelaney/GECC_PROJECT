@@ -8,6 +8,7 @@ global WORKING_DIRECTORY
 
 % check for practice mode
 if nargin > 0
+    sprintf('RUNNING PRACTICE MODE!')
     NUM_RUNS = 1;
     NUM_BLOCKS_IN_RUN = 3;
 else

@@ -50,6 +50,7 @@ global EVENT
 % formatting globals
 global COLOR % text foreground color
 global BGCOLOR % screen background color
+global LIGHT_GRAY % define light gray color
 global TEXT_SIZE % the size of the font for text
 global TEXT_FONT % the name of the font for test
 global RESPONSE_BACKGROUND % color of response area background
@@ -92,7 +93,7 @@ IMAGE_FOLDER = 'jpgs';
 % change these values to modify study timing (all values in seconds)
 RESP_DURATION =     1.5;% duration of the response for each trial
 FEEDBACK_DURATION = 0.5;% duration of the response for each trial
-ISI =               1.5;% duration of interval between trials
+ISI =               [0.5,1.0,1.5];% possible durations of interval between trials
 REST_DURATION =     1.5;% duration of each rest block
 
 % === LOGGING VARIABLES ===
@@ -111,10 +112,11 @@ BLACK = [0 0 0];
 GRAY = [72 72 72];
 LIGHT_GRAY = [192 192 192];
 % assign colors for global colors
-COLOR = BLACK; % the color used for text
-BGCOLOR = WHITE; % the background color of the screen
+COLOR = WHITE; % the color used for text
+BGCOLOR = BLACK; % the background color of the screen
 RESPONSE_BACKGROUND = BLACK; % background of response bar
 RESPONSE_EMPTY_COLOR = WHITE; % color of empty response boxes
+RECT = CenterRectOnPoint([0,0,800,450],RESOLUTION(1)/2,RESOLUTION(2)/2); % background rectangle
 
 % ===
 % END GLOBAL VARIABLES
@@ -142,13 +144,15 @@ PRACTICE = 0;
 %==
 % check for optional parameters
 if nargin > 2
-    if varargin{1} == 0
+    if varargin{1} == '0'
+        2001
         PRACTICE = 1;
         DEBUG = 0;
         NETSTATION = 0;
         %BIOPAC = 0;
         
-    elseif varargin{1} == 1
+    elseif varargin{1} == '1'
+        2002
         PRACTICE = 0;
         DEBUG = 1;
         NETSTATION = 0;
@@ -418,6 +422,15 @@ if DEBUG
     fprintf('%s\n',sprintf('[GO] Showing welcome screen:\n+--\n%s\n+--\n',WELCOME_TEXT));
 else
     try
+        [y, freq] = wavread('wavs/please sit still.wav');
+        wavedata = y';
+        nrchannels = size(wavedata,1);
+
+        pahandle = PsychPortAudio('Open', [], [], 0, freq, nrchannels);
+        
+        buffer = PsychPortAudio('CreateBuffer', pahandle, wavedata);
+        PsychPortAudio('FillBuffer', pahandle, wavedata);
+
         [null, ny] = DrawFormattedText(WINDOW, WELCOME_TEXT,...
             'center', 'center', COLOR);
 
@@ -428,6 +441,7 @@ else
         Screen('DrawingFinished', WINDOW,0);
         % flip the window
         [qvbltime , null, null, missed ]=Screen('Flip',WINDOW, pvbl + IFI);
+        PsychPortAudio('Start', pahandle);
         if missed>0
             fprintf('Deadline missed: Welcome screen\n');
         end
@@ -435,7 +449,9 @@ else
         ValidKeys={'q'};
 
         fprintf(':: Welcome screen :: Press ''q'' to continue\n');
-        
+        PsychPortAudio('Stop',pahandle,1);
+        PsychPortAudio('DeleteBuffer',buffer);
+        PsychPortAudio('Close',pahandle);
         KeepChecking = 1;
         while KeepChecking
             WaitSecs(.05);
@@ -460,6 +476,8 @@ else
     end
 end
 
+EXPERIMENT_START = GetSecs;
+
 RunStartOffset = GetSecs;
 
 % if not set, set StartRun to 1
@@ -478,6 +496,7 @@ try
     % record response has been done
     inprogress = 1;
     while inprogress
+        num_fail = 0;
         for run=StartRun:length(TrialList)
             CURRENT_RUN = CURRENT_RUN + 1;
     
@@ -591,7 +610,10 @@ try
     
                 fprintf('Now running block %d\n[BLOCK %d]\n...to interrupt, hold ESC key\n',block,block);
                 % show stimuli
-                [success, num_fail] = ShowStimuli(BLOCK.trials);
+                [success, num_fail_block] = ShowStimuli(BLOCK.trials);
+                if PRACTICE
+                    num_fail = num_fail + num_fail_block;
+                end
                 if ~ success
                     ExitStudy('Problem occurred in ShowStimuli.m');
                     return
@@ -625,6 +647,12 @@ try
             end % for block
             % reset starting block
             StartBlock = 1;
+            if run == floor(length(TrialList)/2)
+                [Failed, ErrorMessage] = SendTrigger(EVENT.Pause, GetSecs);
+                Screen('DrawingFinished', WINDOW,0);
+                Screen('Flip',WINDOW);
+                WaitSecs(30);
+            end
             % ===
             % RUN COMPLETION SCREEN
             % ===
@@ -635,14 +663,22 @@ try
             else
                 try
                     % show run completion text
-                   practice_success = (num_fail == 0);
+                   practice_success = (num_fail <= 1);
                    if PRACTICE & practice_success
-                       DoneText = ['Practice run complete.\n\nYour score was ',num2str(10-num_fail),' out of 10.\n\nPlease try again.'];
+                       DoneText = ['Practice run complete.\n\nYour score was ',num2str(12-num_fail),' out of 12.\n\nGood job!'];
                    elseif PRACTICE
-                       DoneText = ['Practice run complete.\n\nYour score was ',num2str(10-num_fail),' out of 10.\n\nGood job!'];
+                       DoneText = ['Practice run complete.\n\nYour score was ',num2str(12-num_fail),' out of 12.\n\nPlease try again.'];
                    else
                        DoneText = 'You have finished a run.\n\nRelax, but please do not move.';
                    end
+                    [y, freq] = wavread('wavs/almost done.wav');
+                    wavedata = y';
+                    nrchannels = size(wavedata,1);
+            
+                    pahandle = PsychPortAudio('Open', [], [], 0, freq, nrchannels);
+                    
+                    buffer = PsychPortAudio('CreateBuffer', pahandle, wavedata);
+                    PsychPortAudio('FillBuffer', pahandle, wavedata);
                     [null, ny ] = DrawFormattedText(WINDOW, DoneText,...
                         'center', 'center', COLOR);
                     % add '.' to bottom
@@ -652,6 +688,10 @@ try
                     Screen('DrawingFinished', WINDOW,0);
                     % flip the window
                     [null , null , null, missed ]=Screen('Flip',WINDOW, GetSecs + 5);
+                    PsychPortAudio('Start', pahandle);
+                    PsychPortAudio('Stop',pahandle,1);
+                    PsychPortAudio('DeleteBuffer',buffer);
+                    PsychPortAudio('Close',pahandle);
                     if PRACTICE & practice_success 
                         WaitSecs(5);
                     end
@@ -684,9 +724,11 @@ try
             RunStartOffset = GetSecs;
         end
         if PRACTICE
-            TrialList = Trials(PRACTICE);
             if practice_success
                 inprogress = 0;
+            else
+                TrialList = Trials(PRACTICE);
+                num_fail = 0;
             end
         else
             inprogress = 0;
@@ -699,4 +741,5 @@ end
 % return the screen resolution
 %Screen('Resolution', ScreenID, OldResolution);
 time = fix(clock);
+fprintf('Total Runtime: %f\n',GetSecs - EXPERIMENT_START);
 ExitStudy(sprintf('Finished successfully at %s\n',sprintf('%d:%d:%2d',time([4 5 6]))));

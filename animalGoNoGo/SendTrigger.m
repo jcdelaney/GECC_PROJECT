@@ -8,8 +8,6 @@ global BIOPAC
 global PCPORT
 global SUBJECT_STRING
 global WORKING_DIRECTORY
-global ANCHOR_ORDER % re-ordering of anchor_values
-global ANCHOR_VALUES % EEAEventss corresponding to button presses
 global EVENT
 global LOGID
 global DEBUG
@@ -56,18 +54,6 @@ if nargin > 0
                 return
             end
             % set default anchor values
-            ANCHOR_VALUES = {...
-                EVENT.OutcomeGoodResponse,...
-                EVENT.OutcomeBadResponse,...
-                EVENT.OutcomeNeutResponse,...
-                EVENT.MotiveGoodResponse,...
-                EVENT.MotiveBadResponse,...
-                EVENT.MotiveNeutResponse,...
-                EVENT.LocationInsideResponse,...
-                EVENT.LocationOutsideResponse,...
-                EVENT.LocationUnsureResponse};
-            % update
-            ANCHOR_VALUES = ANCHOR_VALUES(repmat(ANCHOR_ORDER,3,1));
             fprintf(LOGID,'//[SendTrigger] Initialization\n');
         end
     elseif iscell(arg) % EEAEvents to send
@@ -137,47 +123,3 @@ if nargin > 0
         return
     end
 end
-   %{     
-        
-
-    % check to see if argument is a valid EEAEvents
-    if ismember(arg, ValidEEAEventss)
-        if strcmp(arg,'initiate') % write out EEAEvents lexicon store EEAEvents
-            EEAEvents = EEAEEAEventss;
-            [Failed ErrorMessage] = EEAEEAEventss.Export([
-                WORKING_DIRECTORY, filesep, SUBJECT_STRING, '_lex.log'
-                ]);
-            if Failed
-                ExitStudy(ErrorMessage);
-                return
-            end
-        elseif % for responses, rescore
-            
-        else % ASSERT: arg is a code to send
-            % if a netstation code, get onset time
-            if NETSTATION
-                try
-                    OnsetTime = varargin{2};
-                catch ME
-                    fprintf(LOGID,'%d\t%d\t%10.4f\tERROR_no_onset\t%d\n',...
-                        CURRENT_RUN,CURRENT_BLOCK,GetSecs(),-1);
-                    OnsetTime = GetSecs();
-                end
-                % TODO: send NetStation Trigger
-
-            end
-            % if a biopac code, send biopac code
-            if BIOPAC
-                %TODO: send BIOPAC Trigger
-                fprintf(LOGID,'%d\t%d\t%10.4f\tSENDING:%d\t%d\n',...
-                    CURRENT_RUN,CURRENT_BLOCK,GetSecs(),EEAEEAEvents.(arg){1},1);
-            end
-        end
-    else
-        fprintf('Unrecognized command: ');
-        disp(arg)
-        ExitStudy()
-        return
-    end
-end
-%}
